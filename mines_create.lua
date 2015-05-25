@@ -8,7 +8,7 @@ cid_mines.c_air          = minetest.get_content_id('air');
 cid_mines.c_wood         = minetest.get_content_id('default:wood');
 cid_mines.c_fence        = minetest.get_content_id('default:fence_wood');
 cid_mines.c_torch        = minetest.get_content_id('default:torch');
-cid_mines.c_rail         = minetest.get_content_id('default:rail');
+cid_mines.c_rail         = minetest.get_content_id( mines_with_shafts.rail_typ_name );
 
 -- basic additional material used for the shafts
 cid_mines.c_mineladder   = minetest.get_content_id('mines_with_shafts:ladder');
@@ -20,32 +20,22 @@ cid_mines.c_lava_flowing = minetest.get_content_id('default:lava_flowing');
 cid_mines.c_water        = minetest.get_content_id('default:water_source');
 
 
--- nodes that may be found at the side of the tunnels randomly
-cid_mines.c_chest        = minetest.get_content_id('default:chest');
-cid_mines.c_stone        = minetest.get_content_id('default:stone');
-cid_mines.c_sand         = minetest.get_content_id('default:sand');
-cid_mines.c_gravel       = minetest.get_content_id('default:gravel');
-cid_mines.c_ladder       = minetest.get_content_id('default:ladder');
-cid_mines.c_sign_wall    = minetest.get_content_id('default:sign_wall');
-cid_mines.c_coalblock    = minetest.get_content_id('default:coalblock');
-cid_mines.c_steelblock   = minetest.get_content_id('default:steelblock');
-cid_mines.c_copperblock  = minetest.get_content_id('default:copperblock');
-cid_mines.c_barrel       = minetest.get_content_id('cottages:barrel');
-cid_mines.c_shelf        = minetest.get_content_id('cottages:shelf');
-cid_mines.c_tnt          = minetest.get_content_id('tnt:tnt');
-
-
-
 -- TODO
 mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a )
 	local npos = {x=minp.x+40,y=minp.y+40,z=minp.z+40,bsizex=100,bsizez=1};
 	local backwards = false;
-	local extra_calls_mines = {chests={}, signs={}};
+	local extra_calls_mines = {mines={}};
 
-	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos,  100, 1, extra_calls_mines );
-	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos, -100, 1, extra_calls_mines );
-	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos,  100, 0, extra_calls_mines );
-	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos, -100, 0, extra_calls_mines );
+	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos,  4*math.random(1,10), 1, extra_calls_mines );
+	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos, -4*math.random(1,10), 1, extra_calls_mines );
+	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos,  4*math.random(1,10), 0, extra_calls_mines );
+	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos, -4*math.random(1,10), 0, extra_calls_mines );
+
+	local npos2 = {x=npos.x,y=npos.y,z=npos.z};
+	for i=1,10 do
+		npos2.z = npos2.z+8;
+--		mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos2, 8*i, 1, extra_calls_mines );
+	end
 end
 
 

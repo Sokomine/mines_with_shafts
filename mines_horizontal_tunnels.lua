@@ -192,7 +192,9 @@ print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
 	end
 
 
-	mines_with_shafts.place_random_decoration( data, param2_data, a, cid, pos, vector, extra_calls );
+	-- there may be decorative random blocks at both sides
+	mines_with_shafts.place_random_decoration( data, param2_data, a, cid, {x=pos.x+vector.x, y=pos.y, z=pos.z+vector.z},  1, vector, extra_calls );
+	mines_with_shafts.place_random_decoration( data, param2_data, a, cid, {x=pos.x-vector.x, y=pos.y, z=pos.z-vector.z}, -1, vector, extra_calls );
 
 	-- the tunnel has been created successfully
 	return 1;
@@ -201,86 +203,47 @@ end
 
 -- internal function
 -- * place a random decoration at one of the sides (or dig a one-node-wide hole or water source into the floor)
-mines_with_shafts.place_random_decoration = function( data, param2_data, a, cid, pos, vector, extra_calls )
-	-- get a random object for placing in the tunnel
-	local new_id = cid.c_air;
-	local c = math.random( 1,100 );
-	if(     c<5 ) then -- 1,2,3,4
-		new_id = cid.c_chest;
-	elseif( c<7 ) then -- 5,6
-		new_id = cid.c_barrel;
-	elseif( c<9 ) then -- 7,8
-		new_id = cid.c_shelf;
-	elseif( c<11 ) then -- 9,10
-		new_id = cid.c_stone;
-	elseif( c<13 ) then -- 11,12
-		new_id = cid.c_sand;
-	elseif( c<15 ) then -- 13,14
-		new_id = cid.c_gravel;
-	elseif( c<17 ) then -- 15,16
-		new_id = cid.c_ladder;
-	elseif( c<19 ) then -- 17,18
-		new_id = cid.c_coalblock;
-	elseif( c<20 ) then -- 20
-		new_id = cid.c_tnt;
-	elseif( c<21 ) then -- 21
-		new_id = cid.c_sign_wall;
-	elseif( c<22 ) then
-		new_id = cid.c_steelblock;
-	elseif( c<23 ) then
-		new_id = cid.c_copperblock;
-	-- small chance for a water hole at the side
-	elseif( c==96 ) then
-		data[ a:index( pos.x-vector.x, pos.y-1, pos.z-vector.z )]=cid.c_water;
-	elseif( c==97 ) then
-		data[ a:index( pos.x+vector.x, pos.y-1, pos.z+vector.z )]=cid.c_water;
-	-- holes at the sides may also occour
-	elseif( c==98 ) then
-		data[ a:index( pos.x-vector.x, pos.y-1, pos.z-vector.z )]=cid.c_air;
-	elseif( c==99 ) then
-		data[ a:index( pos.x+vector.x, pos.y-1, pos.z+vector.z )]=cid.c_air;
-	else
-		return;
-	end
+mines_with_shafts.place_random_decoration = function( data, param2_data, a, cid, pos, side, vector, extra_calls )
 
-
-	if( new_id == cid.c_ignore or new_id == cid.c_air ) then
-		return;
-	end
-
-	-- only one side of the tunnel gets an object
-	local side = 1;
-	if( math.random( 1,2 )==1 ) then
-		side = -1;
-	end
-	ax = pos.x+vector.x*side;
-	ay = pos.y;
-	az = pos.z+vector.z*side;
 	-- only place something there if the place is currently empty
-	if( data[ a:index( ax, ay, az )]~=cid.c_air ) then
+	if( data[ a:index( pos.x, pos.y, pos.z )]~=cid.c_air ) then
 		return;
 	end
 
-	data[ a:index( ax, ay, az )] = new_id;
-
-	-- rotate facedir nodes correctly
-	local p2 = 0;
-	if(     side==-1 and vector.x~=0 ) then
-		p2 = 3;
-	elseif( side== 1 and vector.x~=0 ) then
-		p2 = 1;
-	elseif( side==-1 and vector.z~=0 ) then
-		p2 = 2;
-	elseif( side== 1 and vector.z~=0 ) then
-		p2 = 0;
+	-- most places remain empty
+	local c = math.random( 1, mines_with_shafts.deco_average_distance );
+	if( c > #mines_with_shafts.deco_list
+	   or not( #mines_with_shafts.deco_list[ c ])
+	   or not( mines_with_shafts.deco[ mines_with_shafts.deco_list[c]] )) then
+		return;
 	end
-	param2_data[ a:index( ax, ay, az )] = p2;
-	
-	if(     new_id == cid.c_chest ) then
-		table.insert( extra_calls.chests, {x=ax, y=ay, z=az, typ=new_content, bpos_i=-1, typ_name='chest_in_mine'});
-	elseif( new_id == cid.c_shelf ) then
-		table.insert( extra_calls.chests, {x=ax, y=ay, z=az, typ=new_content, bpos_i=-1, typ_name='shelf_in_mine'});
-	elseif( new_id == cid.c_sign_wall ) then
-		table.insert( extra_calls.signs,  {x=ax, y=ay, z=az, typ=new_content, bpos_i=-1, typ_name='sign_in_mine'});
+	local deco = mines_with_shafts.deco[ mines_with_shafts.deco_list[c] ];
+
+	-- apply the offset to the y direction and set the node to its id
+	data[ a:index( pos.x, pos.y+deco[2], pos.z )] = deco[3];
+
+	-- handle facedir nodes
+	if(     deco[4]==1 ) then
+		local p2 = 0;
+		if(     side==-1 and vector.x~=0 ) then p2 = 3;
+		elseif( side== 1 and vector.x~=0 ) then p2 = 1;
+		elseif( side==-1 and vector.z~=0 ) then p2 = 2;
+		elseif( side== 1 and vector.z~=0 ) then p2 = 0;
+		end
+		param2_data[ a:index( pos.x, pos.y+deco[2], pos.z )] = p2;
+	-- handle wallmounted nodes
+	elseif( deco[4]==2 ) then
+		local p2 = 0;
+		if(     side==-1 and vector.x~=0 ) then p2 = 3;
+		elseif( side== 1 and vector.x~=0 ) then p2 = 2;
+		elseif( side==-1 and vector.z~=0 ) then p2 = 5;
+		elseif( side== 1 and vector.z~=0 ) then p2 = 4;
+		end
+		param2_data[ a:index( pos.x, pos.y+deco[2], pos.z )] = p2;
+	end
+
+	-- handle nodes which require calls to on_construct (i.e. chests)
+	if( deco[5] ) then
+		table.insert( extra_calls.mines, {x=pos.x, y=pos.y+deco[2], z=pos.z, typ=mines_with_shafts.deco_list[c]} );
 	end
 end
