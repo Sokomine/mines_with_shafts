@@ -19,6 +19,7 @@ end
 
 dofile(mines_with_shafts.modpath.."/config.lua")
 dofile(mines_with_shafts.modpath.."/mines_horizontal_tunnels.lua")
+dofile(mines_with_shafts.modpath.."/mines_vertical_shafts.lua")
 dofile(mines_with_shafts.modpath.."/mines_create.lua")
 
 -- create a list containing all possible decorations for the sides of the mines

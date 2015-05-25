@@ -6,6 +6,7 @@
 mines_with_shafts.deco = {
 	["tnt:tnt"                   ] = {1,0},
 	["default:chest"             ] = {5,0},
+	["default:desert_stone"      ] = {1,0},
 	["default:stone"             ] = {1,0},
 	["default:stone_with_coal"   ] = {1,0},
 	["default:stone_with_iron"   ] = {1,0},

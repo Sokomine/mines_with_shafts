@@ -13,6 +13,7 @@ cid_mines.c_rail         = minetest.get_content_id( mines_with_shafts.rail_typ_n
 -- basic additional material used for the shafts
 cid_mines.c_mineladder   = minetest.get_content_id('mines_with_shafts:ladder');
 cid_mines.c_rope         = minetest.get_content_id('mines_with_shafts:rope');
+cid_mines.c_meselamp     = minetest.get_content_id('default:meselamp');
 
 -- node types that force mine shafts to end there (floodings are still possible)
 cid_mines.c_lava         = minetest.get_content_id('default:lava_source');
@@ -36,6 +37,10 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a )
 		npos2.z = npos2.z+8;
 --		mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos2, 8*i, 1, extra_calls_mines );
 	end
+
+	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, npos,  60, extra_calls );
+	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, npos, -60, extra_calls );
+
 	return extra_calls_mines;
 end
 

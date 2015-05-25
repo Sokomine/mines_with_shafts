@@ -14,6 +14,7 @@ minetest.register_node("mines_with_shafts:rope", {
         paramtype = "light",
         sunlight_propagates = true,
         drawtype = "plantlike",
+	is_ground_content = false,
 	can_dig = function(pos, player)
 			local below = minetest.get_node( {x=pos.x, y=pos.y-1, z=pos.z});
 			if( below and below.name and below.name == "mines_with_shafts:rope" ) then
