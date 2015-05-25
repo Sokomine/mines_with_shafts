@@ -36,6 +36,21 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a )
 		npos2.z = npos2.z+8;
 --		mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos2, 8*i, 1, extra_calls_mines );
 	end
+	return extra_calls_mines;
+end
+
+
+-- set up metadata by calling on_construct
+mines_with_shafts.handle_metadata = function( extra_calls )
+
+	-- call on_construct for those nodes that need it
+	for _,v in pairs( extra_calls.mines ) do
+		if( v.typ and mines_with_shafts.deco[ v.typ ] and mines_with_shafts.deco[ v.typ ][5]) then
+			local on_construct = mines_with_shafts.deco[ v.typ ][5];
+			on_construct( {x=v.x, y=v.y, z=v.z} );
+		end
+	end
+	-- TODO: fill chests, add text to signs
 end
 
 
@@ -72,7 +87,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 
 	-- actually create the mine
-	mines_with_shafts.create_mine( emin, emax, data, param2_data, a );
+	local extra_calls = mines_with_shafts.create_mine( emin, emax, data, param2_data, a );
 
 
 	-- store the voxelmanip data
@@ -83,4 +98,5 @@ minetest.register_on_generated(function(minp, maxp, seed)
         vm:write_to_map(data);
         vm:update_liquids();
 
-end)
+	mines_with_shafts.handle_metadata( extra_calls );
+end) 
