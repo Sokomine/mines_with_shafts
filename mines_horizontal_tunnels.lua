@@ -39,9 +39,9 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 		return;
 	end
 
-	-- the actual start position will be 2 nodes further in, thus creating nice crossings
-	local ax = pos.x+vector.x;
-	local az = pos.z+vector.z;
+	-- the actual start position will be 2 nodes further back, thus creating nice crossings
+	local ax = pos.x+(-2*vector.x);
+	local az = pos.z+(-2*vector.z);
 	for i=1,math.abs(length) do
 		-- go one step further in eitzer x or z direction
 		ax = ax+vector.x;
