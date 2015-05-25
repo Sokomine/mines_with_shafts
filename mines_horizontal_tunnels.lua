@@ -39,6 +39,12 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 		return;
 	end
 
+	-- compensate for the added length of the central crossing
+	if( length<0 ) then
+		length = length-3;
+	else
+		length = length+3;
+	end
 	-- the actual start position will be 2 nodes further back, thus creating nice crossings
 	local ax = pos.x+(-2*vector.x);
 	local az = pos.z+(-2*vector.z);
