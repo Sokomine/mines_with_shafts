@@ -8,7 +8,6 @@ dofile(mines_with_shafts.modpath.."/nodes.lua")
 
 
 -- TODO: give credits to the texture creator(s)
--- TODO: add vertical shafts
 
 -- use the powerrail from carts if available
 mines_with_shafts.rail_typ_name = 'default:rail';

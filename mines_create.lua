@@ -21,11 +21,32 @@ cid_mines.c_lava_flowing = minetest.get_content_id('default:lava_flowing');
 cid_mines.c_water        = minetest.get_content_id('default:water_source');
 
 
--- TODO
+mines_with_shafts.count_daylight = function( pos )
+	local anz_daylight = 0;
+	for x=pos.x-1,pos.x+1 do
+		for z=pos.z-1,pos.z+1 do
+			local light = minetest.get_node_light({x=x, y=pos.y, z=z}, 0.5);
+			if( light and light==15 ) then
+				anz_daylight = anz_daylight+1;
+			end
+		end
+	end
+
+	return anz_daylight;
+end
+
+
+
+-- TODO: actually create convincing, random mines
 mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a )
 	local npos = {x=minp.x+40,y=minp.y+40,z=minp.z+40,bsizex=100,bsizez=1};
 	local backwards = false;
 	local extra_calls_mines = {mines={}, schems={}};
+
+	-- do not create floating mines in daylight
+	if( npos.y > -1 and mines_with_shafts.count_daylight( npos )>3 ) then
+		return extra_calls_mines;
+	end
 
 	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos,  4*math.random(1,10), 1, extra_calls_mines );
 	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos, -4*math.random(1,10), 1, extra_calls_mines );
@@ -70,7 +91,6 @@ end
 
 minetest.register_on_generated(function(minp, maxp, seed)
 
-	-- TODO: mines still float in the air
 	-- limit height of the mines
 	if(  minp.y < -256 or minp.y > 64) then
 		return;
