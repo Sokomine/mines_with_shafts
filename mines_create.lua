@@ -25,7 +25,7 @@ cid_mines.c_water        = minetest.get_content_id('default:water_source');
 mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a )
 	local npos = {x=minp.x+40,y=minp.y+40,z=minp.z+40,bsizex=100,bsizez=1};
 	local backwards = false;
-	local extra_calls_mines = {mines={}};
+	local extra_calls_mines = {mines={}, schems={}};
 
 	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos,  4*math.random(1,10), 1, extra_calls_mines );
 	mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos, -4*math.random(1,10), 1, extra_calls_mines );
@@ -38,14 +38,15 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a )
 --		mines_with_shafts.place_minetunnel_horizontal(minp, maxp, data, param2_data, a, cid_mines, npos2, 8*i, 1, extra_calls_mines );
 	end
 
-	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, npos,  60, extra_calls );
-	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, npos, -60, extra_calls );
+	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, npos,  60, extra_calls_mines );
+	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, npos, -60, extra_calls_mines );
 
 	return extra_calls_mines;
 end
 
 
--- set up metadata by calling on_construct
+-- set up metadata by calling on_construct;
+-- also places schematics for mine entrances/mining towers
 mines_with_shafts.handle_metadata = function( extra_calls )
 
 	-- call on_construct for those nodes that need it
@@ -55,6 +56,14 @@ mines_with_shafts.handle_metadata = function( extra_calls )
 			on_construct( {x=v.x, y=v.y, z=v.z} );
 		end
 	end
+
+	local path = mines_with_shafts.modpath..'/schems/';
+	for _,v in pairs( extra_calls.schems ) do
+		if( v.file ) then
+			minetest.place_schematic( {x=v.x, y=v.y, z=v.z}, path..v.file..".mts", "0", {}, true);
+		end
+	end
+
 	-- TODO: fill chests, add text to signs
 end
 

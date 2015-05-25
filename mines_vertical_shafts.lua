@@ -22,8 +22,23 @@ mines_with_shafts.place_mineshaft_vertical = function(minp, maxp, data, param2_d
 			return;
 		end
 
-		-- TODO: check daylight
-
+		if( i>0 ) then
+			local anz_daylight = 0;
+			for x=-1,1 do
+				for z=-1,1 do
+					local light = minetest.get_node_light({x=pos.x+x, y=i, z=pos.z+z}, 0.5);
+					if( light and light==15 ) then
+						anz_daylight = anz_daylight+1;
+					end
+				end
+			end
+			-- the shaft has reached the top
+			if( anz_daylight > 3 ) then
+				-- TODO: build alternate mine entrances and choose one randomly
+				table.insert( extra_calls.schems,  {x=pos.x-5, y=i-7, z=pos.z-5, file='mining_tower_1_7_90'});
+				return;
+			end
+		end
 
 		-- the central place always gets a rope
 		data[ a:index( pos.x, i, pos.z ) ] = cid.c_rope;
