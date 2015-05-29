@@ -4,18 +4,8 @@
 
 
 -- if length is <0, the tunnel will go in the opposite direction
+-- returns the length of the new tunnel
 mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param2_data, a, cid, pos, length, parallel_to_x_axis, extra_calls )
-
-	-- minetunnels are not allowed to follow the borders of mapchunks while beeing only partly contained in that chunk
-	-- as this would make consistent placement a lot harder and is not really needed for convincing mines
-	if(  (pos.y-2 < minp.y and pos.y+2 > minp.y )
-	  or (pos.y-2 < maxp.y and pos.y+2 > maxp.y )
-	  or (pos.z-2 < minp.z and pos.z+2 > minp.z and parallel_to_x_axis == 1)
-	  or (pos.z-2 < maxp.z and pos.z+2 > maxp.z and parallel_to_x_axis == 1)
-	  or (pos.x-2 < minp.x and pos.x+2 > minp.x and parallel_to_x_axis == 0)
-	  or (pos.x-2 < maxp.x and pos.x+2 > maxp.x and parallel_to_x_axis == 0)) then
-		return;
-	end
 
 	local vector      = {x=0,y=0,z=0};
 	local vector_quer = {x=0,y=0,z=0};
@@ -36,7 +26,7 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 		vector_quer.x = 1;
 	else
 		-- wrong parameters
-		return;
+		return 0;
 	end
 
 	-- compensate for the added length of the central crossing
@@ -45,27 +35,39 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 	else
 		length = length+3;
 	end
+
+	-- abort if the entrance to this tunnel is hit by daylight
+	for ax=pos.x-1,pos.x+1 do
+	for az=pos.z-1,pos.z+1 do
+		local light = minetest.get_node_light({x=ax, y=pos.y+1, z=az}, 0.5);
+		if( light and light==15 ) then
+			return 0;
+		end
+	end
+	end
+
 	-- the actual start position will be 2 nodes further back, thus creating nice crossings
 	local ax = pos.x+(-2*vector.x);
 	local az = pos.z+(-2*vector.z);
 	for i=1,math.abs(length) do
-		-- go one step further in eitzer x or z direction
+		-- go one step further in either x or z direction
 		ax = ax+vector.x;
 		az = az+vector.z;
 
 		-- make sure we do not exceed the boundaries of the mapchunk
-		if(   ax < minp.x or ax > maxp.x
-		   or az < minp.z or az > maxp.z ) then
-			return;
+		if(   (parallel_to_x_axis==0 and (ax < minp.x or ax > maxp.x ))
+		   or (parallel_to_x_axis==1 and (az < minp.z or az > maxp.z ))) then
+			return i;
 		end
 		
 		local res = mines_with_shafts.do_minetunnel_horizontal_slice( minp, maxp, data, param2_data, a, cid,
 			{x=ax, y=pos.y, z=az}, vector_quer, i%4, (length<0), extra_calls);
 		-- abort if there is anything that prevents the mine from progressing in that direction
 		if( res < 0 ) then
-			return;
+			return i;
 		end
 	end
+	return math.abs(length);
 end
 
 -- internal function
@@ -85,33 +87,40 @@ mines_with_shafts.do_minetunnel_horizontal_slice = function( minp, maxp, data, p
 	for ax=pos.x+(vector.x*-2),pos.x+(vector.x*2) do
 	for az=pos.z+(vector.z*-2),pos.z+(vector.z*2) do
 		for y=-1,2 do
-			local old_node = data[ a:index( ax, pos.y+y, az)];
-				-- we have hit a vertical minetunnel
-			if( old_node==cid.c_mineladder or old_node==cid.c_rope ) then
-				-- the tunnel may still continue behind this vertical tunnel
-				return 0;
-			end
-
-			-- we do not want to build a tunnel through lava or water; though both may flow in if we digged too far
-			-- (the poor inhabitants will have given up the tunnel)
-			if( old_node==cid.c_lava or old_node==cid.c_lava_flowing or old_node==cid.c_water ) then
-				-- the tunnel has to end here
-print('MINESHAFT abort due to water or lava at '..minetest.pos_to_string( pos));
-				return -1;
-			end
-
-			if( math.abs(ax-pos.x)<2 and math.abs(az-pos.z)<2 ) then
-				-- as soon as any of the 3 topmost nodes receives no daylight, we do not need to check any longer
-				if( y==2 and no_daylight) then
-					local light = minetest.get_node_light({x=ax, y=pos.y+y, z=az}, 0.5);
-					if( light and light==15 ) then
-						no_daylight = false;
-					end
+			if(                         a:contains( ax, pos.y+y, az ) ) then
+				local old_node = data[ a:index( ax, pos.y+y, az)];
+					-- we have hit a vertical minetunnel
+				if( old_node==cid.c_mineladder or old_node==cid.c_rope ) then
+					-- the tunnel may still continue behind this vertical tunnel
+					return 0;
 				end
 	
-				-- if there is air at the bottom, place some wood to walk on (even if the tunnel will later be aborted)
-				if( y==-1 and old_node==cid.c_air) then
-					data[ a:index( ax, pos.y+y, az)] = cid.c_wood;
+				-- we do not want to build a tunnel through lava or water; though both may flow in if we digged too far
+				-- (the poor inhabitants will have given up the tunnel)
+				if( old_node==cid.c_lava or old_node==cid.c_lava_flowing or old_node==cid.c_water ) then
+					-- the tunnel has to end here
+--print('MINESHAFT abort due to water or lava at '..minetest.pos_to_string( pos));
+					return -1;
+				end
+
+				if( old_node==cid.c_ignore ) then
+--print('MINESHAFT ended due to nodes of type IGNORE');
+					return -3;
+				end
+	
+				if( pos.y>-1 and math.abs(ax-pos.x)<2 and math.abs(az-pos.z)<2) then
+					-- as soon as any of the 3 topmost nodes receives no daylight, we do not need to check any longer
+					if( y==2 and no_daylight) then
+						local light = minetest.get_node_light({x=ax, y=pos.y+y, z=az}, 0.5);
+						if( light and light==15 ) then
+							no_daylight = false;
+						end
+					end
+		
+					-- if there is air at the bottom, place some wood to walk on (even if the tunnel will later be aborted)
+					if( y==-1 and old_node==cid.c_air) then
+						data[ a:index( ax, pos.y+y, az)] = cid.c_wood;
+					end
 				end
 			end
 		end
@@ -119,13 +128,17 @@ print('MINESHAFT abort due to water or lava at '..minetest.pos_to_string( pos));
 	end
  
 	-- there will always be a rail on the ground
-	data[ a:index( pos.x, pos.y,   pos.z )] = cid.c_rail;
+	if(        a:contains( pos.x, pos.y,   pos.z )) then
+		data[ a:index( pos.x, pos.y,   pos.z )] = cid.c_rail;
+	end
 	-- ..and air directly above so that players can walk through
-	data[ a:index( pos.x, pos.y+1, pos.z )] = cid.c_air;
+	if(        a:contains( pos.x, pos.y+1, pos.z )) then
+		data[ a:index( pos.x, pos.y+1, pos.z )] = cid.c_air;
+	end
 
 	-- if all three topmost nodes receive daylight, then it's time to end our tunnel
 	if( not( no_daylight )) then
-print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
+--print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
 		return -2;
 	end
 
@@ -135,14 +148,28 @@ print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
 		ax = vector.x;
 		az = vector.z;
 		-- place the four fences at the sides
-		data[ a:index( pos.x-ax, pos.y,   pos.z-az )] = cid.c_fence;
-		data[ a:index( pos.x-ax, pos.y+1, pos.z-az )] = cid.c_fence;
-		data[ a:index( pos.x+ax, pos.y,   pos.z+az )] = cid.c_fence;
-		data[ a:index( pos.x+ax, pos.y+1, pos.z+az )] = cid.c_fence;
+		if(        a:contains( pos.x-ax, pos.y,   pos.z-az )) then
+			data[ a:index( pos.x-ax, pos.y,   pos.z-az )] = cid.c_fence;
+		end
+		if(        a:contains( pos.x-ax, pos.y+1, pos.z-az )) then
+			data[ a:index( pos.x-ax, pos.y+1, pos.z-az )] = cid.c_fence;
+		end
+		if(        a:contains( pos.x+ax, pos.y,   pos.z+az )) then
+			data[ a:index( pos.x+ax, pos.y,   pos.z+az )] = cid.c_fence;
+		end
+		if(        a:contains( pos.x+ax, pos.y+1, pos.z+az )) then
+			data[ a:index( pos.x+ax, pos.y+1, pos.z+az )] = cid.c_fence;
+		end
 		-- place the three wooden planks on top of the fences
-		data[ a:index( pos.x,    pos.y+2, pos.z    )] = cid.c_wood; 
-		data[ a:index( pos.x-ax, pos.y+2, pos.z-az )] = cid.c_wood; 
-		data[ a:index( pos.x+ax, pos.y+2, pos.z+az )] = cid.c_wood; 
+		if(        a:contains( pos.x,    pos.y+2, pos.z    )) then
+			data[ a:index( pos.x,    pos.y+2, pos.z    )] = cid.c_wood; 
+		end
+		if(        a:contains( pos.x-ax, pos.y+2, pos.z-az )) then
+			data[ a:index( pos.x-ax, pos.y+2, pos.z-az )] = cid.c_wood; 
+		end
+		if(        a:contains( pos.x+ax, pos.y+2, pos.z+az )) then
+			data[ a:index( pos.x+ax, pos.y+2, pos.z+az )] = cid.c_wood; 
+		end
 		-- all has been placed successfully
 		return 1;
 	end
@@ -152,7 +179,8 @@ print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
 	for ax=pos.x+(vector.x*-1),pos.x+(vector.x*1) do
 	for az=pos.z+(vector.z*-1),pos.z+(vector.z*1) do
 		for ay = pos.y, pos.y+2 do
-			if( (ax ~= pos.x or az ~= pos.z) and ( ay>pos.y or data[a:index(ax,ay,az)]~=cid.c_rail)) then
+			if(        a:contains( ax, ay, az )
+			   and (ax ~= pos.x or az ~= pos.z) and ( ay>pos.y or data[a:index(ax,ay,az)]~=cid.c_rail)) then
 				data[ a:index( ax, ay, az )] = cid.c_air;
 			end
 		end
@@ -173,7 +201,9 @@ print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
 		end
 	-- put air in the middle
 	elseif( beam_seq_nr == 2 ) then
-		data[ a:index( pos.x,    pos.y+2, pos.z    )] = cid.c_air; 
+		if(        a:contains( pos.x,    pos.y+2, pos.z )) then
+			data[ a:index( pos.x,    pos.y+2, pos.z    )] = cid.c_air; 
+		end
 	-- attach a torch to the beam
 	elseif( beam_seq_nr == 3 ) then
 		if(     vector.x ~= 0 and not(backwards )) then
@@ -187,8 +217,10 @@ print('MINESHAFT abort due to daylight at '..minetest.pos_to_string(pos));
 		end
 	end
 	if( p2 > -1 ) then
-		data[        a:index( pos.x, pos.y+2, pos.z )] = cid.c_torch;
-		param2_data[ a:index( pos.x, pos.y+2, pos.z )] = p2;
+		if(               a:contains( pos.x, pos.y+2, pos.z )) then
+			data[        a:index( pos.x, pos.y+2, pos.z )] = cid.c_torch;
+			param2_data[ a:index( pos.x, pos.y+2, pos.z )] = p2;
+		end
 	end
 
 
@@ -206,7 +238,7 @@ end
 mines_with_shafts.place_random_decoration = function( data, param2_data, a, cid, pos, side, vector, extra_calls )
 
 	-- only place something there if the place is currently empty
-	if( data[ a:index( pos.x, pos.y, pos.z )]~=cid.c_air ) then
+	if( not( a:contains( pos.x, pos.y, pos.z )) or  data[ a:index( pos.x, pos.y, pos.z )]~=cid.c_air ) then
 		return;
 	end
 
@@ -220,6 +252,9 @@ mines_with_shafts.place_random_decoration = function( data, param2_data, a, cid,
 	local deco = mines_with_shafts.deco[ mines_with_shafts.deco_list[c] ];
 
 	-- apply the offset to the y direction and set the node to its id
+	if( not( a:contains( pos.x, pos.y+deco[2], pos.z ))) then
+		return;
+	end
 	data[ a:index( pos.x, pos.y+deco[2], pos.z )] = deco[3];
 
 	-- handle facedir nodes

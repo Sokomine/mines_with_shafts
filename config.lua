@@ -43,3 +43,6 @@ mines_with_shafts.deco = {
 
 -- how many nodes ought to be between two randomly placed decos?
 mines_with_shafts.deco_average_distance = 15;
+
+-- set to true in order to get meselamps in vertical shafts all 20 nodes
+mines_with_shafts.place_meselamps = false;
