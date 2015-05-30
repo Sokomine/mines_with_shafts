@@ -19,6 +19,7 @@ cid_mines.c_meselamp     = minetest.get_content_id('default:meselamp');
 cid_mines.c_lava         = minetest.get_content_id('default:lava_source');
 cid_mines.c_lava_flowing = minetest.get_content_id('default:lava_flowing');
 cid_mines.c_water        = minetest.get_content_id('default:water_source');
+cid_mines.c_cobble       = minetest.get_content_id('default:cobble');
 
 
 mines_with_shafts.count_daylight = function( pos )
@@ -66,7 +67,7 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a, heig
 	-- TODO: check for better ways to init it
 	local pr = PseudoRandom( pos.x * 64000 + pos.z );
 	-- make sure not too many mines get generated
-	if( pr:next(1,4)>1 ) then
+	if( pr:next(1,10)>3 ) then
 		return extra_calls_mines;
 	end
 --TODO local i2=math.random(1,10); for i=1,i2 do pr:next(1,pr:next(2,100)); end
@@ -74,7 +75,12 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a, heig
 	local surface_height = 1;
 	-- this is the level that (may) contain the surface
 	if( minp.y <0 and maxp.y >0 ) then
-		surface_height = mines_with_shafts.get_avg_surface_height( minp, maxp, pos, 6, heightmap );
+--		surface_height = mines_with_shafts.get_avg_surface_height( minp, maxp, pos, 1, heightmap );
+		for h=maxp.y,0 do
+			if( mines_with_shafts.count_daylight( {x=pos.x, y=h, z=pos.z})>3) then
+				surface_height = h;
+			end
+		end
 		if( surface_height < 1 ) then
 			surface_height = 1;
 		end
@@ -89,7 +95,7 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a, heig
 
 	-- the main level may have levels of tunnels above and below it;
 	-- each mine has its own deterministic value (else we get into trouble with chunks generated below or above)
-	local main_level_at = pr:next( -128, -30 );
+	local main_level_at = pr:next( -128, -50 );
 	-- make sure all levels are at heights that are multitudes of 10
 	main_level_at = main_level_at - (main_level_at%10) +5;
 
@@ -103,10 +109,30 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a, heig
 	mines_with_shafts.place_mineshaft_vertical(minp, maxp, data, param2_data, a, cid_mines, vpos, vlength, extra_calls_mines );
 
 	local npos = {x=pos.x, y=main_level_at; z=pos.z};
-	mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, 0 );
+--	mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, 0 );
 
 	local surface_level_at = pr:next( 0,30 );
 	surface_level_at = surface_level_at - (surface_level_at%10) +5;
+	for i=3,-3,-1 do
+		npos.y = 15+i*5;
+		local iteration_depth = 0;
+		if( i==0 ) then
+			iteration_depth = 0;
+		elseif( i==1 or i==-1 ) then
+			iteration_depth = 1;
+		else
+			iteration_depth = 2;
+		end
+		if( pr:next(1,5)<4 and npos.y<surface_level_at) then
+			mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, iteration_depth );
+		end
+		npos.y = main_level_at +15+i*5;
+		if( pr:next(1,5)<4 and npos.y<surface_level_at) then
+			mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, iteration_depth );
+		end
+	end
+		
+--[[
 	npos.y = surface_level_at+20;
 	mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, 2 );
 	npos.y = surface_level_at+10;
@@ -117,7 +143,7 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a, heig
 	mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, 1 );
 	npos.y = surface_level_at-20;
 	mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, 2 );
-
+--]]
 	return extra_calls_mines;
 end
 
@@ -126,8 +152,13 @@ mines_with_shafts.create_branches_at_level = function( minp, maxp, data, param2_
 	mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, pos, extra_calls_mines, pr, 1, primary_axis, initial_iteration_depth );
 	mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, pos, extra_calls_mines, pr,-1, primary_axis, initial_iteration_depth );
 	-- smaller branches at the side
-	mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, pos, extra_calls_mines, pr, 1, primary_axis, initial_iteration_depth-2 );
-	mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, pos, extra_calls_mines, pr,-1, primary_axis, initial_iteration_depth-2 );
+	if( primary_axis == 1 ) then
+		primary_axis = 0;
+	else
+		primary_axis = 1;
+	end
+	mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, pos, extra_calls_mines, pr, 1, primary_axis, math.min(3,initial_iteration_depth+2 ));
+	mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, pos, extra_calls_mines, pr,-1, primary_axis, math.min(3,initial_iteration_depth+2 ));
 end
 
 
@@ -163,7 +194,7 @@ mines_with_shafts.create_branch = function( minp, maxp, data, param2_data, a, ci
 	end
 
 	local last_right = true;
-	local last_left  = false;
+	local last_left  = true;
 	local dist_last_shaft = 0;
 	for i=4,length,4 do
 		local p = pr:next(1,25);
@@ -189,7 +220,7 @@ mines_with_shafts.create_branch = function( minp, maxp, data, param2_data, a, ci
 			mines_with_shafts.create_branch( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, d1*-1, nd2, iteration_depth+1 );
 			last_right = true; 
 			last_left  = false;
-		else
+		elseif( pr:next(1,6)>1 ) then
 			last_right = false;
 			last_left  = false;
 		end

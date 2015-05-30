@@ -36,6 +36,7 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 		length = length+3;
 	end
 
+--[[
 	-- abort if the entrance to this tunnel is hit by daylight
 	for ax=pos.x-1,pos.x+1 do
 	for az=pos.z-1,pos.z+1 do
@@ -45,6 +46,7 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 		end
 	end
 	end
+--]]
 
 	-- the actual start position will be 2 nodes further back, thus creating nice crossings
 	local ax = pos.x+(-2*vector.x);
@@ -64,7 +66,7 @@ mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param
 			{x=ax, y=pos.y, z=az}, vector_quer, i%4, (length<0), extra_calls);
 		-- abort if there is anything that prevents the mine from progressing in that direction
 		if( res < 0 ) then
-			return i;
+-- TODO			return i;
 		end
 	end
 	return math.abs(length);
@@ -108,23 +110,50 @@ mines_with_shafts.do_minetunnel_horizontal_slice = function( minp, maxp, data, p
 					return -3;
 				end
 	
+--[[
 				if( pos.y>-1 and math.abs(ax-pos.x)<2 and math.abs(az-pos.z)<2) then
 					-- as soon as any of the 3 topmost nodes receives no daylight, we do not need to check any longer
 					if( y==2 and no_daylight) then
 						local light = minetest.get_node_light({x=ax, y=pos.y+y, z=az}, 0.5);
 						if( light and light==15 ) then
 							no_daylight = false;
+							return -2;
 						end
 					end
-		
-					-- if there is air at the bottom, place some wood to walk on (even if the tunnel will later be aborted)
-					if( y==-1 and old_node==cid.c_air) then
-						data[ a:index( ax, pos.y+y, az)] = cid.c_wood;
-					end
 				end
+--]]
 			end
 		end
 	end
+	end
+
+	for i=-1,1 do
+		local ax = pos.x+(vector.x*i );
+		local az = pos.z+(vector.z*i );
+		if(                         a:contains( ax, pos.y-1, az ) ) then
+			local old_node = data[ a:index( ax, pos.y-1, az)];
+			-- if there is air at the bottom, place some wood to walk on (even if the tunnel will later be aborted)
+			if( old_node==cid.c_air or old_node==cid.c_fence) then
+				data[ a:index( ax, pos.y-1, az)] = cid.c_wood;
+			end
+		end
+		if( beam_seq_nr==0 and i~=0) then
+			local k=-2;
+			while( k>=minp.y
+			  and a:contains( ax, pos.y-k, az )
+			  and (data[  a:index( ax, pos.y+k, az)]==cid.c_air 
+			    or data[  a:index( ax, pos.y+k, az)]==cid.c_water 
+			    or data[  a:index( ax, pos.y+k, az)]==cid.c_lava )) do
+				if(     data[ a:index( ax, pos.y+k, az)]==cid.c_air ) then
+					data[ a:index( ax, pos.y+k, az)] = cid.c_fence;
+				elseif( data[ a:index( ax, pos.y+k, az)]==cid.c_water ) then
+					data[ a:index( ax, pos.y+k, az)] = cid.c_cobble;
+				elseif( data[ a:index( ax, pos.y+k, az)]==cid.c_lava ) then
+					data[ a:index( ax, pos.y+k, az)] = cid.c_cobble;
+				end
+				k = k-1;
+			end
+		end
 	end
  
 	-- there will always be a rail on the ground
