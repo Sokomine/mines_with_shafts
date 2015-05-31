@@ -123,11 +123,11 @@ mines_with_shafts.create_mine = function( minp, maxp, data, param2_data, a, heig
 		else
 			iteration_depth = 2;
 		end
-		if( pr:next(1,5)<4 and npos.y<surface_level_at) then
+		if( pr:next(1,5)<4 and npos.y<surface_height-2) then
 			mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, iteration_depth );
 		end
 		npos.y = main_level_at +15+i*5;
-		if( pr:next(1,5)<4 and npos.y<surface_level_at) then
+		if( pr:next(1,5)<4 and npos.y<surface_height-2) then
 			mines_with_shafts.create_branches_at_level( minp, maxp, data, param2_data, a, cid_mines, npos, extra_calls_mines, pr, 1, iteration_depth );
 		end
 	end
