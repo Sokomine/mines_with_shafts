@@ -3,7 +3,9 @@ mines_with_shafts.place_mineshaft_vertical = function(minp, maxp, data, param2_d
 
 	for i=pos.y,math.max( minp.y, pos.y-length),-1 do
 		-- the central place always gets a rope
-		data[ a:index( pos.x, i, pos.z ) ] = cid.c_rope;
+		if( pos.x>=minp.x and pos.x<=maxp.x and pos.z>=minp.z and pos.z<=maxp.z) then
+			data[ a:index( pos.x, i, pos.z ) ] = cid.c_rope;
+		end
 
 		if( pos.x >minp.x and pos.x<=maxp.x) then
 			-- ..sourrounded by mineladders

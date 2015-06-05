@@ -59,3 +59,12 @@ mines_with_shafts.init_deco_list = function()
 end
 mines_with_shafts.init_deco_list();
 
+
+-- adjust some node definitions in order to avoid cavegen griefing
+local def = minetest.registered_nodes['default:wood'];
+def.is_ground_content = false;
+minetest.register_node( ':default:wood', def );
+
+def = minetest.registered_nodes[mines_with_shafts.rail_typ_name];
+def.is_ground_content = false;
+minetest.register_node( ':'..mines_with_shafts.rail_typ_name, def );
