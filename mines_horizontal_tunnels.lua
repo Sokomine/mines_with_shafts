@@ -7,103 +7,94 @@
 -- returns the length of the new tunnel
 mines_with_shafts.place_minetunnel_horizontal = function(minp, maxp, data, param2_data, a, cid, pos, length, parallel_to_x_axis, extra_calls, heightmap )
 
+	-- exclude those tunnels that are not part of this mapchunk
 	-- we are only responsible for this tunnel if the central part of it is contained in this mapchunk;
 	-- that way, there will always be exactly one mapchunk responsible for each tunnel,
 	-- and the heightmap can be used as well;
 	-- further boundary checks are not necessary as the tunnel will be smaller than the shell
-	if(   (                          ( pos.y < minp.y or pos.y > maxp.y))
-	   or (parallel_to_x_axis==0 and ( pos.x < minp.x or pos.x > maxp.x))
-	   or (parallel_to_x_axis==1 and ( pos.z < minp.z or pos.z > maxp.z))
-	   -- eliminate wrong parameters
-	   or (parallel_to_x_axis~=0 and parallel_to_x_axis~=1)
-	   or (not(heightmap))) then
-		return 0;
+	if( pos.y < minp.y or pos.y > maxp.y 
+	   or (parallel_to_x_axis==1 and ((pos.z < minp.z or pos.z > maxp.z) or (length>0 and pos.x>maxp.x) or (length<0 and pos.x<minp.x))) 
+	   or (parallel_to_x_axis~=1 and ((pos.x < minp.x or pos.x > maxp.x) or (length>0 and pos.z>maxp.z) or (length<0 and pos.z<minp.z)))) then 
+		return;
 	end
 
-	local step = 1;
-	if( length<0 ) then
-		step = -1;
+	local px = 0;
+	local pz = 0;
+	if(parallel_to_x_axis==1) then
+		px = 1;
+		pz = 0;
+	else
+		px = 0;
+		pz = 1;
 	end
+	if( length<0 ) then
+		px = px*-1;
+		pz = pz*-1;
+	end
+	local vector_quer = {x=math.abs(pz),z=math.abs(px)};
+	local chunksize = maxp.x-minp.x+1;
 	local ax = pos.x;
 	local az = pos.z;
-	local vector_quer = {x=0,z=0};
-	if(     parallel_to_x_axis==0 ) then
-		if(     pos.x < minp.x and step>0) then
-			ax = minp.x;
-			length = length-( minp.x-pos.x );
-		elseif( pos.x > maxp.x and step<0) then
-			ax = maxp.x;
-			length = length-( pos.x-maxp.x );
-		end
-		vector_quer = {x=1,z=0};
-	elseif( parallel_to_x_axis==1 ) then
-		if(     pos.z < minp.z and step>0) then
-			az = minp.z;
-			length = length-( minp.z-pos.z );
-		elseif( pos.z > maxp.z and step<0) then
-			az = maxp.z;
-			length = length-( pos.z-maxp.z );
-		end
-		vector_quer = {x=0,z=1};
-	end
- 
 	local candidates = {};
-	for i=1,length,step do
-		local height = heightmap[(az-minp.z)*80+(ax-minp.x)+1];
-		if( height and ax>=minp.x and ax<=maxp.x and az>=minp.z and az<=maxp.z) then
---			data[ a:index( ax, height, az )] = minetest.get_content_id('wool:pink');
+	local d = 5; -- distance to the last slice of the tunnel that was definitely below ground
+	for i=1,math.abs(length) do
+		local seq_nr = 0;
+		if(     az==pos.z ) then
+			seq_nr = (ax+2)%4;
+		elseif( ax==pos.x ) then
+			seq_nr = (az+2)%4;
+		end
+		if( ax >= minp.x and ax <= maxp.x and az >= minp.z and az <= maxp.z and pos.y >= minp.y and pos.y <= maxp.y) then
 
-			local is_below_ground = false;
-			if( height>pos.y+2 or maxp.y<0) then
-				is_below_ground = true;
+			if( pos.y < 0 ) then
+				d = 0;
+			else
+				local height = 1;
+				if( heightmap ) then
+					height = heightmap[(az-minp.z)*chunksize+(ax-minp.x)+1];
+				else
+					light = minetest.get_node_light({x=ax, y=pos.y+2, z=az}, 0.5);
+					if( not(light) or light<14 ) then
+						height = pos.y+3;
+					end
+				end
+				if( height and height > minp.y and height < maxp.y ) then
+					if(     height <= pos.y+1 ) then
+						if( mines_with_shafts.MARK_TUNNELS ) then
+							data[ a:index( ax, height, az )] = mines_with_shafts.MARK_TUNNELS;
+						end
+						d = d+1;
+						if( d>=5) then
+							candidates[ #candidates+1 ] = {ax,az,seq_nr};
+						end
+					elseif( height > pos.y+1 ) then
+						d = 0;
+					end
+				else
+					candidates[ #candidates+1 ] = {ax,az,seq_nr};
+				end
 			end
 
-			local seq_nr = 0;
-			if(     az==pos.z ) then
-				seq_nr = (ax+2)%4;
-			elseif( ax==pos.x ) then
-				seq_nr = (az+2)%4;
-			end
-			candidates[ #candidates+1 ] = {x=ax,y=pos.y,z=az,seq_nr=seq_nr,is_below_ground=is_below_ground};
-		end	
-		if( parallel_to_x_axis==1 ) then
-			ax = ax + step;
-		else
-			az = az + step;
-		end
-	end
-
-	-- add some open mineshafts for the entrances
-	local change_occoured = true;
-	for i=1,#candidates do
-		if( i>1 and candidates[i].is_below_ground and not(candidates[i-1].is_below_ground)) then
-			for j=i-1,math.max(1,i-6) do
-				candidates[j].is_below_ground = true;
+			if( d<5 ) then
+				local res = mines_with_shafts.do_minetunnel_horizontal_slice( minp, maxp, data, param2_data, a, cid,
+					{x=ax, y=pos.y, z=az}, vector_quer, seq_nr, (length<0), extra_calls);
+				-- place the last 5 slices so that the entrance looks better
+				if( #candidates > 0 ) then
+					local bridge_length = mines_with_shafts.MIN_BRIDGE_LENGTH;
+					if( #candidates <= mines_with_shafts.MAX_BRIDGE_LENGTH ) then
+						bridge_length = #candidates;
+					end
+					for j=math.max(1,#candidates-bridge_length),#candidates do
+						local res = mines_with_shafts.do_minetunnel_horizontal_slice( minp, maxp, data, param2_data, a, cid,
+							{x=candidates[j][1], y=pos.y, z=candidates[j][2]}, vector_quer, candidates[j][3], (length<0), extra_calls);
+					end
+					candidates = {};
+				end
 			end
 		end
+		ax = ax+px;
+		az = az+pz;
 	end
-	for i=#candidates,2,-1 do
-		if( i<#candidates and candidates[i-1].is_below_ground and not(candidates[i].is_below_ground)) then
-			for j=i,math.min(#candidates,i+5) do
-				candidates[j].is_below_ground = true;
-			end
-		end
-	end
-			
-
--- TODO: just for visualization
-	local id_wood = minetest.get_content_id('default:wood');
-	local id_mese = minetest.get_content_id('default:pinewood');
-	for i,v in ipairs( candidates ) do
-		if( v and v.is_below_ground==true ) then
-			cid.c_wood = id_wood;
-			local res = mines_with_shafts.do_minetunnel_horizontal_slice( minp, maxp, data, param2_data, a, cid,
-				{x=v.x, y=v.y, z=v.z}, vector_quer, v.seq_nr, (length<0), extra_calls);
-		else
-			cid.c_wood = id_mese;
-		end
-	end
-	cid.c_wood = id_wood;
 
 	return math.abs(length);
 end
@@ -149,7 +140,7 @@ mines_with_shafts.do_minetunnel_horizontal_slice = function( minp, maxp, data, p
 		local az = pos.z+(vector.z*i );
 		local old_node = data[ a:index( ax, pos.y-1, az)];
 		-- if there is air at the bottom, place some wood to walk on (even if the tunnel will later be aborted)
-		if( old_node==cid.c_air or old_node==cid.c_fence) then
+		if( old_node==cid.c_air or old_node==cid.c_fence or old_node==cid.c_ignore) then
 			data[ a:index( ax, pos.y-1, az)] = cid.c_wood;
 		end
 		if( beam_seq_nr==0 and i~=0) then

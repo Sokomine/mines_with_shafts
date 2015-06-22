@@ -46,3 +46,13 @@ mines_with_shafts.deco_average_distance = 15;
 
 -- set to true in order to get meselamps in vertical shafts all 20 nodes
 mines_with_shafts.place_meselamps = false;
+
+-- some tunnels are above ground;
+-- they may require a bridge in order to reach further parts of the network;
+-- the entrances also become better visible that way
+mines_with_shafts.MIN_BRIDGE_LENGTH = 5
+-- bridges can never grow longer than this size
+mines_with_shafts.MAX_BRIDGE_LENGTH = 12
+
+-- put a mese lamp where a tunnel would be placed above ground (only for debugging purposes)
+mines_with_shafts.MARK_TUNNELS = nil; --minetest.get_content_id('default:meselamp');
